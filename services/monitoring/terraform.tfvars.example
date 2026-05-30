@@ -1,0 +1,14 @@
+# Example Monitoring Stack Configuration
+# Copy this to terraform.tfvars and customize
+
+release_name            = "kube-prometheus-stack"
+chart_version           = "54.0.0"
+namespace               = "monitoring"
+prometheus_retention    = "30d"
+prometheus_storage_size = "50Gi"
+
+# SENSITIVE: Set via Terrakube UI Variables or local terraform.tfvars
+# grafana_admin_password = "your-secure-password"
+
+enable_ingress = true
+grafana_hosts  = ["grafana.yourdomain.com"]
