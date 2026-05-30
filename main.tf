@@ -1,13 +1,18 @@
 terraform {
   required_providers {
     terrakube = {
-      source  = "terrakube-io/terrakube"
+      source  = "registry.terraform.io/terrakube-io/terrakube"
       version = "~> 0.22"
     }
     external = {
       source  = "hashicorp/external"
       version = "~> 2.3"
     }
+  }
+  
+  # Temporarily using local backend for initial setup
+  # Will migrate to remote backend after first apply
+  backend "local" {
   }
 
   # Backend configuration should be provided via:
