@@ -19,6 +19,29 @@ variable "vcs_name" {
   description = "VCS connection name in Terrakube (e.g., 'MyOrg - GitHub')"
 }
 
+variable "vcs_connection_type" {
+  type        = string
+  description = "VCS connection type (OAUTH or STANDALONE)"
+  default     = "OAUTH"
+
+  validation {
+    condition     = contains(["OAUTH", "STANDALONE"], var.vcs_connection_type)
+    error_message = "vcs_connection_type must be either 'OAUTH' or 'STANDALONE'"
+  }
+}
+
+variable "vcs_client_id" {
+  type        = string
+  description = "GitHub App client ID (for STANDALONE VCS)"
+  default     = ""
+}
+
+variable "vcs_private_key_path" {
+  type        = string
+  description = "Path to the GitHub App private key file (for STANDALONE VCS)"
+  default     = ""
+}
+
 variable "infrastructure_repo" {
   type        = string
   description = "Git repository URL containing actual infrastructure configurations"
