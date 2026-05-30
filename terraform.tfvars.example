@@ -1,0 +1,59 @@
+# Example Terraform variables configuration
+# Copy this file to terraform.tfvars and fill in your values
+# 
+# WARNING: terraform.tfvars contains sensitive data and should NOT be committed to git
+# It is already in .gitignore
+
+# --- Required Variables ---
+
+# Terrakube instance endpoint
+terrakube_endpoint = "https://api.terrakube.yourdomain.com"
+
+# Terrakube organization name
+terrakube_organization = "YourOrgName"
+
+# VCS connection name (as configured in Terrakube UI)
+vcs_name = "YourOrgName - GitHub"
+
+# Infrastructure repository (contains actual .tf files)
+infrastructure_repo = "https://github.com/your-org/your-infrastructure-repo"
+
+# Terrakube API token (SENSITIVE - consider using environment variable instead)
+# Get from: Terrakube UI → Settings → Personal Access Tokens
+# Required permissions: manageWorkspace
+terrakube_token = "your-terrakube-api-token-here"
+
+# --- Optional Variables (with defaults) ---
+
+# Git branch to use
+# infrastructure_branch = "main"
+
+# Prefix for workspace names (e.g., "infra" creates "infra-services-monitoring")
+# workspace_prefix = "infra"
+
+# Name of the manager workspace (must exist in Terrakube before applying)
+# manager_workspace_name = "workspace-manager"
+
+# Path to workspace management files (for webhook path filtering)
+# workspace_management_path = "terrakube/workspaces"
+
+# IaC type: "terraform" or "tofu"
+# iac_type = "terraform"
+
+# Terraform/OpenTofu version
+# iac_version = "1.15.5"
+
+# Branch patterns for webhooks (regex, [".*"] = all branches)
+# webhook_branches = [".*"]
+
+# --- Alternative: Use Environment Variables (More Secure) ---
+#
+# Instead of putting sensitive values in terraform.tfvars, use:
+#
+#   export TF_VAR_terrakube_token="your-token"
+#   export TF_VAR_terrakube_endpoint="https://api.terrakube.yourdomain.com"
+#   export TF_VAR_terrakube_organization="YourOrgName"
+#   export TF_VAR_vcs_name="YourOrgName - GitHub"
+#   export TF_VAR_infrastructure_repo="https://github.com/your-org/your-repo"
+#
+# Then terraform.tfvars only needs non-sensitive overrides

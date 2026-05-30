@@ -1,0 +1,42 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Sensitive variable files
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Backend configuration
+backend.tfvars
+.terraformrc
+terraform.rc
+
+# Plan files
+*.tfplan
+
+# Sensitive data
+.env
+.env.local
+*.pem
+*.key
+secrets/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github/workflows/*.local.yml
