@@ -10,20 +10,10 @@ terraform {
     }
   }
 
-  # Temporarily using local backend for initial setup
-  # Will migrate to remote backend after first apply
-  backend "local" {
+  # State is stored in Terrakube (Infrastructure-Terrakube workspace).
+  # Configure token via: export TF_TOKEN_api_terrakube_rollet_family="<token>"
+  backend "remote" {
   }
-
-  # Backend configuration should be provided via:
-  # 1. Environment variables (TF_CLI_CONFIG_FILE)
-  # 2. -backend-config flags during init
-  # 3. backend.tfvars file (gitignored)
-  #
-  # Example backend.tfvars:
-  # hostname     = "api.terrakube.yourdomain.com"
-  # organization = "YourOrgName"
-  # workspace    = "workspace-manager"
 }
 
 provider "terrakube" {
