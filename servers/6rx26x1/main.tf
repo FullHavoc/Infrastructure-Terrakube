@@ -9,21 +9,26 @@ terraform {
   backend "remote" {}
 }
 
+variable "ssh_host" {
+  type        = string
+  description = "SSH hostname or IP of the target server"
+}
+
+variable "ssh_user" {
+  type        = string
+  description = "SSH username on the target server"
+}
+
 variable "ssh_private_key" {
   type        = string
   sensitive   = true
-  description = "ED25519 private key for havoc@6rx26x1.rollet.family"
+  description = "ED25519 private key for SSH access"
 }
 
 variable "packages" {
   type        = list(string)
   description = "APT packages to ensure are installed"
   default     = ["htop", "vim", "git", "curl", "unattended-upgrades"]
-}
-
-locals {
-  host = "192.168.144.25"
-  user = "havoc"
 }
 
 resource "null_resource" "packages" {
@@ -33,8 +38,8 @@ resource "null_resource" "packages" {
 
   connection {
     type        = "ssh"
-    host        = local.host
-    user        = local.user
+    host        = var.ssh_host
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -51,8 +56,8 @@ resource "null_resource" "unattended_upgrades" {
 
   connection {
     type        = "ssh"
-    host        = local.host
-    user        = local.user
+    host        = var.ssh_host
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
