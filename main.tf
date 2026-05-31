@@ -36,7 +36,7 @@ data "terrakube_organization" "this" {
   name = var.terrakube_organization
 }
 
-# Get VCS connection
+# VCS connection (GitHub App for posting plan status checks on PRs)
 data "terrakube_vcs" "github" {
   name            = var.vcs_name
   organization_id = data.terrakube_organization.this.id
@@ -104,7 +104,7 @@ resource "terrakube_workspace_webhook_event" "push_manager" {
   webhook_id  = terrakube_workspace_webhook_v2.manager.id
   event       = "PUSH"
   branch      = var.webhook_branches
-  path        = ["^${var.workspace_management_path}/.*"]
+  path        = ["*"]
   template_id = data.terrakube_organization_template.plan_only.id
   priority    = 10
 }
@@ -113,7 +113,7 @@ resource "terrakube_workspace_webhook_event" "pr_manager" {
   webhook_id  = terrakube_workspace_webhook_v2.manager.id
   event       = "PULL_REQUEST"
   branch      = var.webhook_branches
-  path        = ["^${var.workspace_management_path}/.*"]
+  path        = ["*"]
   template_id = data.terrakube_organization_template.plan_only.id
   priority    = 10
 }
@@ -133,7 +133,7 @@ resource "terrakube_workspace_webhook_event" "push_child" {
   webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
   event       = "PUSH"
   branch      = var.webhook_branches
-  path        = ["^${each.value.folder}/.*"]
+  path        = ["${each.value.folder}/**"]
   template_id = data.terrakube_organization_template.plan_only.id
   priority    = 10
 }
@@ -144,7 +144,7 @@ resource "terrakube_workspace_webhook_event" "pr_child" {
   webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
   event       = "PULL_REQUEST"
   branch      = var.webhook_branches
-  path        = ["^${each.value.folder}/.*"]
+  path        = ["${each.value.folder}/**"]
   template_id = data.terrakube_organization_template.plan_only.id
   priority    = 10
 }
