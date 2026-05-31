@@ -94,60 +94,57 @@ data "terrakube_workspace" "manager" {
   organization = var.terrakube_organization
 }
 
-# TEMPORARILY DISABLED: Webhook provider has issues
-# TODO: Re-enable after fixing webhook provider or Terrakube upgrade
-#
-# resource "terrakube_workspace_webhook_v2" "manager" {
-#   organization_id = data.terrakube_organization.this.id
-#   workspace_id    = data.terrakube_workspace.manager.id
-#   migrated_v2     = true
-# }
-# 
-# resource "terrakube_workspace_webhook_event" "push_manager" {
-#   webhook_id  = terrakube_workspace_webhook_v2.manager.id
-#   event       = "PUSH"
-#   branch      = var.webhook_branches
-#   path        = ["^${var.workspace_management_path}/.*"]
-#   template_id = data.terrakube_organization_template.plan_only.id
-#   priority    = 10
-# }
-# 
-# resource "terrakube_workspace_webhook_event" "pr_manager" {
-#   webhook_id  = terrakube_workspace_webhook_v2.manager.id
-#   event       = "PULL_REQUEST"
-#   branch      = var.webhook_branches
-#   path        = ["^${var.workspace_management_path}/.*"]
-#   template_id = data.terrakube_organization_template.plan_only.id
-#   priority    = 10
-# }
-# 
-# # --- Child workspace webhooks ---
-# resource "terrakube_workspace_webhook_v2" "child" {
-#   for_each = local.workspaces
-# 
-#   organization_id = data.terrakube_organization.this.id
-#   workspace_id    = terrakube_workspace_vcs.this[each.key].id
-#   migrated_v2     = true
-# }
-# 
-# resource "terrakube_workspace_webhook_event" "push_child" {
-#   for_each = local.workspaces
-# 
-#   webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
-#   event       = "PUSH"
-#   branch      = var.webhook_branches
-#   path        = ["^${each.value.folder}/.*"]
-#   template_id = data.terrakube_organization_template.plan_only.id
-#   priority    = 10
-# }
-# 
-# resource "terrakube_workspace_webhook_event" "pr_child" {
-#   for_each = local.workspaces
-# 
-#   webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
-#   event       = "PULL_REQUEST"
-#   branch      = var.webhook_branches
-#   path        = ["^${each.value.folder}/.*"]
-#   template_id = data.terrakube_organization_template.plan_only.id
-#   priority    = 10
-# }
+resource "terrakube_workspace_webhook_v2" "manager" {
+  organization_id = data.terrakube_organization.this.id
+  workspace_id    = data.terrakube_workspace.manager.id
+  migrated_v2     = true
+}
+
+resource "terrakube_workspace_webhook_event" "push_manager" {
+  webhook_id  = terrakube_workspace_webhook_v2.manager.id
+  event       = "PUSH"
+  branch      = var.webhook_branches
+  path        = ["*"]
+  template_id = data.terrakube_organization_template.plan_only.id
+  priority    = 10
+}
+
+resource "terrakube_workspace_webhook_event" "pr_manager" {
+  webhook_id  = terrakube_workspace_webhook_v2.manager.id
+  event       = "PULL_REQUEST"
+  branch      = var.webhook_branches
+  path        = ["*"]
+  template_id = data.terrakube_organization_template.plan_only.id
+  priority    = 10
+}
+
+# --- Child workspace webhooks ---
+resource "terrakube_workspace_webhook_v2" "child" {
+  for_each = local.workspaces
+
+  organization_id = data.terrakube_organization.this.id
+  workspace_id    = terrakube_workspace_vcs.this[each.key].id
+  migrated_v2     = true
+}
+
+resource "terrakube_workspace_webhook_event" "push_child" {
+  for_each = local.workspaces
+
+  webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
+  event       = "PUSH"
+  branch      = var.webhook_branches
+  path        = ["${each.value.folder}/**"]
+  template_id = data.terrakube_organization_template.plan_only.id
+  priority    = 10
+}
+
+resource "terrakube_workspace_webhook_event" "pr_child" {
+  for_each = local.workspaces
+
+  webhook_id  = terrakube_workspace_webhook_v2.child[each.key].id
+  event       = "PULL_REQUEST"
+  branch      = var.webhook_branches
+  path        = ["${each.value.folder}/**"]
+  template_id = data.terrakube_organization_template.plan_only.id
+  priority    = 10
+}

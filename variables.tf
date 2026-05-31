@@ -65,12 +65,6 @@ variable "manager_workspace_name" {
   default     = "workspace-manager"
 }
 
-variable "workspace_management_path" {
-  type        = string
-  description = "Path to workspace management files (for webhook filtering)"
-  default     = "terrakube/workspaces"
-}
-
 variable "iac_type" {
   type        = string
   description = "IaC tool type (terraform or tofu)"
@@ -90,6 +84,6 @@ variable "iac_version" {
 
 variable "webhook_branches" {
   type        = list(string)
-  description = "Branch patterns for webhook filtering (regex)"
-  default     = [".*"]
+  description = "Branch patterns for webhook filtering (glob — Terrakube uses glob matching)"
+  default     = ["*"]
 }
