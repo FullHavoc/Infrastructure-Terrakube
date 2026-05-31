@@ -69,7 +69,7 @@ variable "iac_type" {
   type        = string
   description = "IaC tool type (terraform or tofu)"
   default     = "terraform"
-  
+
   validation {
     condition     = contains(["terraform", "tofu"], var.iac_type)
     error_message = "iac_type must be either 'terraform' or 'tofu'"
