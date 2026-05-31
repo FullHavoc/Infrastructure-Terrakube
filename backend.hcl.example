@@ -1,0 +1,11 @@
+# Backend configuration for Infrastructure-Terrakube workspace manager
+# Copy to backend.hcl (gitignored) and configure your token.
+#
+# Set token via env var:
+#   export TF_TOKEN_api_terrakube_rollet_family="<your-token>"
+
+hostname     = "api.terrakube.rollet.family"
+organization = "HomeInfrastructure"
+workspaces {
+  name = "Infrastructure-Terrakube"
+}
