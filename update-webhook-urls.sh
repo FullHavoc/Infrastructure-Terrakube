@@ -1,26 +1,27 @@
 #!/bin/bash
+# NOTE: Terrakube now manages the GitHub webhook automatically via the webhook_v2 resource.
+# This script is kept for reference but is no longer needed for normal operation.
+#
+# The active webhook on FullHavoc/Infrastructure-Terrakube is managed by Terrakube
+# and points to: https://api.terrakube.rollet.family/webhook/v2/<id>
+#
+# To see the current webhook URL, run:
+#   tofu output manager_webhook_url
+#
+# To see the active GitHub webhook:
+#   gh api repos/FullHavoc/Infrastructure-Terrakube/hooks | jq '[.[] | {id, events, url: .config.url}]'
 
-# GitHub webhook IDs
-PUSH_WEBHOOK_ID=633762939
-PR_WEBHOOK_ID=633762945
+set -euo pipefail
 
-# Correct v1 webhook URL
-WEBHOOK_URL="https://api.terrakube.rollet.family/webhook/v1/7beea389-be93-4ac7-9f66-18042b0eec8f"
+WEBHOOK_URL=$(tofu output -raw manager_webhook_url 2>/dev/null)
 
-# Get GitHub token
-GITHUB_TOKEN=$(doppler secrets get GITHUB_PAT --plain)
+if [[ -z "$WEBHOOK_URL" ]]; then
+  echo "ERROR: Could not determine webhook URL. Run 'tofu apply' first, or pass the URL as an argument." >&2
+  exit 1
+fi
 
-# Update push webhook
-echo "Updating push webhook..."
-curl -X PATCH \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/FullHavoc/Infrastructure-Terrakube/hooks/${PUSH_WEBHOOK_ID}" \
-  -d "{\"config\":{\"url\":\"${WEBHOOK_URL}\",\"content_type\":\"json\"}}"
-
-echo -e "\n\nUpdating pull_request webhook..."
-curl -X PATCH \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/FullHavoc/Infrastructure-Terrakube/hooks/${PR_WEBHOOK_ID}" \
-  -d "{\"config\":{\"url\":\"${WEBHOOK_URL}\",\"content_type\":\"json\"}}"
+echo "Current Terrakube webhook URL: $WEBHOOK_URL"
+echo ""
+echo "GitHub webhook is managed automatically by Terrakube."
+echo "Current GitHub webhooks:"
+gh api repos/FullHavoc/Infrastructure-Terrakube/hooks | jq '[.[] | {id, events, url: .config.url}]'
