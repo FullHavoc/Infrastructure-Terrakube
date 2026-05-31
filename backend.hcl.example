@@ -1,0 +1,5 @@
+hostname     = "api.terrakube.yourdomain.com"
+organization = "YourOrgName"
+workspaces {
+  name = "workspace-manager"
+}

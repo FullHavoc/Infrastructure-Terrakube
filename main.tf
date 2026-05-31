@@ -9,7 +9,7 @@ terraform {
       version = "~> 2.3"
     }
   }
-  
+
   # Temporarily using local backend for initial setup
   # Will migrate to remote backend after first apply
   backend "local" {
@@ -42,9 +42,15 @@ data "terrakube_vcs" "github" {
   organization_id = data.terrakube_organization.this.id
 }
 
-# Get Plan-only template
+# Get Plan-only template (used for PRs — shows what would change without applying)
 data "terrakube_organization_template" "plan_only" {
   name            = "Plan"
+  organization_id = data.terrakube_organization.this.id
+}
+
+# Get Plan and Apply template (used on push to main — creates/updates workspaces)
+data "terrakube_organization_template" "plan_and_apply" {
+  name            = "Plan and apply"
   organization_id = data.terrakube_organization.this.id
 }
 
@@ -103,9 +109,9 @@ resource "terrakube_workspace_webhook_v2" "manager" {
 resource "terrakube_workspace_webhook_event" "push_manager" {
   webhook_id  = terrakube_workspace_webhook_v2.manager.id
   event       = "PUSH"
-  branch      = var.webhook_branches
+  branch      = ["main"]
   path        = ["*"]
-  template_id = data.terrakube_organization_template.plan_only.id
+  template_id = data.terrakube_organization_template.plan_and_apply.id
   priority    = 10
 }
 

@@ -16,3 +16,8 @@ output "workspaces" {
     }
   }
 }
+
+output "manager_webhook_url" {
+  description = "Terrakube webhook URL for the manager workspace — set this as the GitHub webhook payload URL"
+  value       = "${var.terrakube_endpoint}/webhook/v1/${terrakube_workspace_webhook_v2.manager.id}"
+}
