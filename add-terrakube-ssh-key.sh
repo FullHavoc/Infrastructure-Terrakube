@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Adds the Terrakube SSH public key to a target server's authorized_keys.
-# The key is pulled from Doppler (matrix-homelab/hetzner → TRUENAS_TERRAKUBE_SSH_KEY).
+# The key is pulled from Doppler (matrix-homelab/hetzner → TERRAKUBE_SSH_PRIVATE_KEY).
 # Usage: add-terrakube-ssh-key.sh [user@]host [...]
 
 set +e
@@ -13,7 +13,7 @@ NC='\033[0m'
 
 DOPPLER_PROJECT="matrix-homelab"
 DOPPLER_CONFIG="hetzner"
-DOPPLER_SECRET="TRUENAS_TERRAKUBE_SSH_KEY"
+DOPPLER_SECRET="TERRAKUBE_SSH_PRIVATE_KEY"
 
 # --- Validate dependencies ---
 if ! command -v doppler &>/dev/null; then
