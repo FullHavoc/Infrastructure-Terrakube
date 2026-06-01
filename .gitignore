@@ -26,6 +26,7 @@ terraform.rc
 # Sensitive data
 .env
 .env.local
+.envrc
 *.pem
 *.key
 secrets/
