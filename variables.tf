@@ -87,3 +87,16 @@ variable "webhook_branches" {
   description = "Branch patterns for webhook filtering (glob — Terrakube uses glob matching)"
   default     = ["*"]
 }
+
+variable "ssh_private_key" {
+  type        = string
+  description = "Org-level global var injected by Terrakube into all workspaces — not used by workspace manager"
+  sensitive   = true
+  default     = ""
+}
+
+variable "ssh_user" {
+  type        = string
+  description = "Org-level global var injected by Terrakube into all workspaces — not used by workspace manager"
+  default     = ""
+}
