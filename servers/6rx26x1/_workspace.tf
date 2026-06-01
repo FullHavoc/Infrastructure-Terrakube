@@ -8,12 +8,19 @@
 # description: Dell PowerEdge Ubuntu Server — packages, NFS mounts/exports, UFW, unattended-upgrades, authorized keys
 
 # ── Workspace variables ───────────────────────────────────────────────────────
-# Set in the Terrakube workspace (sourced from Doppler) and injected at plan/apply time.
+# Global org variables (set once in Terrakube, injected into all workspaces):
+#   ssh_private_key — ED25519 private key (sourced from Doppler as TERRAKUBE_SSH_PRIVATE_KEY)
+#   ssh_user        — SSH username (havoc)
 
 variable "ssh_private_key" {
   type        = string
   sensitive   = true
-  description = "ED25519 private key for SSH access (stored in Doppler as TERRAKUBE_SSH_PRIVATE_KEY)"
+  description = "ED25519 private key for SSH access (global org variable)"
+}
+
+variable "ssh_user" {
+  type        = string
+  description = "SSH username (global org variable)"
 }
 
 variable "authorized_keys" {

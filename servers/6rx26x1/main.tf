@@ -3,7 +3,6 @@
 locals {
   # ── Connection ──────────────────────────────────────────────────────────────
   ssh_host = "6rx26x1.rollet.family"
-  ssh_user = "havoc"
 
   # ── Packages ────────────────────────────────────────────────────────────────
   packages = [
@@ -86,7 +85,7 @@ resource "null_resource" "packages" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -110,7 +109,7 @@ resource "null_resource" "iscsi_cleanup" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -138,7 +137,7 @@ resource "null_resource" "nfs_source_mounts" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -180,7 +179,7 @@ resource "null_resource" "nfs_exports" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -212,7 +211,7 @@ resource "null_resource" "ufw" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -242,7 +241,7 @@ resource "null_resource" "unattended_upgrades" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
@@ -270,7 +269,7 @@ resource "null_resource" "authorized_keys" {
   connection {
     type        = "ssh"
     host        = local.ssh_host
-    user        = local.ssh_user
+    user        = var.ssh_user
     private_key = var.ssh_private_key
   }
 
