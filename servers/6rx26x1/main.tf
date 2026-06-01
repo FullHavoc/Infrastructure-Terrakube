@@ -9,6 +9,8 @@ terraform {
   backend "remote" {}
 }
 
+# ── Connection ───────────────────────────────────────────────────────────────
+
 variable "ssh_host" {
   type        = string
   description = "SSH hostname or IP of the target server"
@@ -25,11 +27,119 @@ variable "ssh_private_key" {
   description = "ED25519 private key for SSH access"
 }
 
+# ── Packages ─────────────────────────────────────────────────────────────────
+
 variable "packages" {
   type        = list(string)
   description = "APT packages to ensure are installed"
-  default     = ["htop", "vim", "git", "curl", "unattended-upgrades"]
+  default = [
+    "btop",
+    "curl",
+    "git",
+    "htop",
+    "nfs-common",
+    "nfs-kernel-server",
+    "open-iscsi",
+    "unattended-upgrades",
+    "vim",
+  ]
 }
+
+# ── NFS ──────────────────────────────────────────────────────────────────────
+
+variable "nfs_source_host" {
+  type        = string
+  description = "NFS source server hostname or IP (TrueNAS)"
+}
+
+variable "nfs_client_subnet" {
+  type        = string
+  description = "Subnet allowed to mount NFS exports (also used for UFW LAN rules)"
+}
+
+variable "nfs_media_shares" {
+  type        = map(string)
+  description = "Map of local mount name to NFS source path, e.g. {\"movies\" = \"/mnt/pool/Movies\"}"
+  default     = {}
+}
+
+variable "nfs_backup_source_path" {
+  type        = string
+  description = "NFS source path for the k3s-backups mount (empty string to skip)"
+  default     = ""
+}
+
+# ── SSH authorized keys ───────────────────────────────────────────────────────
+
+variable "authorized_keys" {
+  type        = list(string)
+  sensitive   = true
+  description = "SSH public keys to write to ~/.ssh/authorized_keys"
+  default     = []
+}
+
+# ── Unattended upgrades ───────────────────────────────────────────────────────
+
+variable "auto_reboot_enabled" {
+  type        = bool
+  description = "Automatically reboot after security upgrades if /var/run/reboot-required exists"
+  default     = true
+}
+
+variable "auto_reboot_time" {
+  type        = string
+  description = "Time to perform automatic reboot (24h HH:MM)"
+  default     = "02:00"
+}
+
+# ── Locals ────────────────────────────────────────────────────────────────────
+
+locals {
+  sorted_share_names = sort(keys(var.nfs_media_shares))
+
+  # /etc/exports — re-exports TrueNAS shares to LAN clients
+  nfs_exports_content = join("\n", concat(
+    ["# Managed by Terraform — do not edit manually"],
+    [for i, name in local.sorted_share_names :
+      "/mnt/truenas/${name}\t${var.nfs_client_subnet}(rw,sync,no_subtree_check,no_root_squash,fsid=${i + 1})"
+    ],
+    var.nfs_backup_source_path != "" ? [
+      "/mnt/k3s-backups\t${var.nfs_client_subnet}(ro,sync,no_subtree_check,no_root_squash,fsid=100)"
+    ] : [],
+    [""]
+  ))
+
+  # fstab block — mounts from NFS source host into this server
+  nfs_fstab_block = join("\n", concat(
+    ["# TERRAKUBE-NFS-BEGIN — do not edit manually"],
+    [for name, path in var.nfs_media_shares :
+      "${var.nfs_source_host}:${path} /mnt/truenas/${name} nfs defaults,_netdev,nofail 0 0"
+    ],
+    var.nfs_backup_source_path != "" ? [
+      "${var.nfs_source_host}:${var.nfs_backup_source_path} /mnt/k3s-backups nfs defaults,_netdev,nofail 0 0"
+    ] : [],
+    ["# TERRAKUBE-NFS-END", ""]
+  ))
+
+  unattended_upgrades_config = <<-EOT
+    // Managed by Terraform — do not edit manually
+    Unattended-Upgrade::Allowed-Origins {
+      "$${distro_id}:$${distro_codename}";
+      "$${distro_id}:$${distro_codename}-security";
+      "$${distro_id}ESMApps:$${distro_codename}-apps-security";
+      "$${distro_id}ESM:$${distro_codename}-infra-security";
+    };
+    Unattended-Upgrade::Package-Blacklist {};
+    Unattended-Upgrade::DevRelease "auto";
+    Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+    Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+    Unattended-Upgrade::Automatic-Reboot "${tostring(var.auto_reboot_enabled)}";
+    Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+    Unattended-Upgrade::Automatic-Reboot-Time "${var.auto_reboot_time}";
+  EOT
+}
+
+# ── Packages ──────────────────────────────────────────────────────────────────
 
 resource "null_resource" "packages" {
   triggers = {
@@ -46,13 +156,19 @@ resource "null_resource" "packages" {
   provisioner "remote-exec" {
     inline = [
       "sudo apt-get update -qq",
-      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ${join(" ", var.packages)}",
+      "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ${join(" ", sort(var.packages))}",
     ]
   }
 }
 
-resource "null_resource" "unattended_upgrades" {
-  depends_on = [null_resource.packages]
+# ── iSCSI cleanup ─────────────────────────────────────────────────────────────
+# Remove stale Longhorn PVC node records left from the decommissioned local
+# K3s cluster. No sessions are active; logout is a safe no-op.
+
+resource "null_resource" "iscsi_cleanup" {
+  triggers = {
+    run_once = "2026-06-01"
+  }
 
   connection {
     type        = "ssh"
@@ -63,7 +179,174 @@ resource "null_resource" "unattended_upgrades" {
 
   provisioner "remote-exec" {
     inline = [
+      "sudo iscsiadm -m node --logoutall=all 2>/dev/null || true",
+      "sudo iscsiadm -m node -o delete 2>/dev/null || true",
+    ]
+  }
+}
+
+# ── NFS source mounts ─────────────────────────────────────────────────────────
+# Mounts TrueNAS shares onto this server so they can be re-exported.
+# Uses a comment-delimited block in /etc/fstab for idempotent management.
+
+resource "null_resource" "nfs_source_mounts" {
+  depends_on = [null_resource.packages]
+
+  triggers = {
+    source_host   = var.nfs_source_host
+    shares        = sha256(jsonencode(var.nfs_media_shares))
+    backup_source = var.nfs_backup_source_path
+  }
+
+  connection {
+    type        = "ssh"
+    host        = var.ssh_host
+    user        = var.ssh_user
+    private_key = var.ssh_private_key
+  }
+
+  provisioner "remote-exec" {
+    inline = concat(
+      ["sudo mkdir -p /mnt/truenas"],
+      [for name, _ in var.nfs_media_shares : "sudo mkdir -p /mnt/truenas/${name}"],
+      var.nfs_backup_source_path != "" ? ["sudo mkdir -p /mnt/k3s-backups"] : [],
+      ["sudo sed -i '/# TERRAKUBE-NFS-BEGIN/,/# TERRAKUBE-NFS-END/d' /etc/fstab"],
+    )
+  }
+
+  provisioner "file" {
+    content     = local.nfs_fstab_block
+    destination = "/tmp/fstab-nfs.terrakube"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "cat /tmp/fstab-nfs.terrakube | sudo tee -a /etc/fstab > /dev/null",
+      "rm /tmp/fstab-nfs.terrakube",
+      "sudo mount -a 2>&1 | grep -v 'already mounted' || true",
+    ]
+  }
+}
+
+# ── NFS exports ───────────────────────────────────────────────────────────────
+# Writes /etc/exports and re-exports to LAN clients.
+
+resource "null_resource" "nfs_exports" {
+  depends_on = [null_resource.packages, null_resource.nfs_source_mounts]
+
+  triggers = {
+    client_subnet = var.nfs_client_subnet
+    shares        = sha256(jsonencode(var.nfs_media_shares))
+    backup_source = var.nfs_backup_source_path
+  }
+
+  connection {
+    type        = "ssh"
+    host        = var.ssh_host
+    user        = var.ssh_user
+    private_key = var.ssh_private_key
+  }
+
+  provisioner "file" {
+    content     = local.nfs_exports_content
+    destination = "/tmp/exports.terrakube"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/exports.terrakube /etc/exports",
+      "sudo chmod 644 /etc/exports",
+      "sudo systemctl enable --now nfs-server",
+      "sudo exportfs -ra",
+    ]
+  }
+}
+
+# ── UFW ───────────────────────────────────────────────────────────────────────
+# Enables the firewall. SSH is allowed globally; NFS ports are LAN-only.
+
+resource "null_resource" "ufw" {
+  depends_on = [null_resource.packages]
+
+  triggers = {
+    lan_subnet = var.nfs_client_subnet
+  }
+
+  connection {
+    type        = "ssh"
+    host        = var.ssh_host
+    user        = var.ssh_user
+    private_key = var.ssh_private_key
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo ufw default deny incoming",
+      "sudo ufw default allow outgoing",
+      "sudo ufw allow 22/tcp comment 'SSH'",
+      "sudo ufw allow from ${var.nfs_client_subnet} to any port 2049 comment 'NFS'",
+      "sudo ufw allow from ${var.nfs_client_subnet} to any port 111 comment 'NFS rpcbind'",
+      "sudo ufw allow from ${var.nfs_client_subnet} to any port 20048 comment 'NFS mountd'",
+      "sudo ufw --force enable",
+    ]
+  }
+}
+
+# ── Unattended upgrades ───────────────────────────────────────────────────────
+
+resource "null_resource" "unattended_upgrades" {
+  depends_on = [null_resource.packages]
+
+  triggers = {
+    auto_reboot_enabled = tostring(var.auto_reboot_enabled)
+    auto_reboot_time    = var.auto_reboot_time
+  }
+
+  connection {
+    type        = "ssh"
+    host        = var.ssh_host
+    user        = var.ssh_user
+    private_key = var.ssh_private_key
+  }
+
+  provisioner "file" {
+    content     = local.unattended_upgrades_config
+    destination = "/tmp/50unattended-upgrades.terrakube"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mv /tmp/50unattended-upgrades.terrakube /etc/apt/apt.conf.d/50unattended-upgrades",
+      "sudo chmod 644 /etc/apt/apt.conf.d/50unattended-upgrades",
       "sudo systemctl enable --now unattended-upgrades",
+    ]
+  }
+}
+
+# ── Authorized keys ───────────────────────────────────────────────────────────
+
+resource "null_resource" "authorized_keys" {
+  triggers = {
+    keys_hash = sha256(join("\n", var.authorized_keys))
+  }
+
+  connection {
+    type        = "ssh"
+    host        = var.ssh_host
+    user        = var.ssh_user
+    private_key = var.ssh_private_key
+  }
+
+  provisioner "file" {
+    content     = join("\n", var.authorized_keys)
+    destination = "/tmp/authorized_keys.terrakube"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "mkdir -p ~/.ssh && chmod 700 ~/.ssh",
+      "mv /tmp/authorized_keys.terrakube ~/.ssh/authorized_keys",
+      "chmod 600 ~/.ssh/authorized_keys",
     ]
   }
 }
