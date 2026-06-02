@@ -18,7 +18,7 @@ locals {
   ]
 
   # ── NFS ─────────────────────────────────────────────────────────────────────
-  nfs_source_host        = "192.168.144.5"
+  nfs_source_host        = "truenas.rollet.family"
   nfs_client_subnet      = "192.168.144.0/24"
   nfs_backup_source_path = "/mnt/MassStorage/k3s-backups"
 
