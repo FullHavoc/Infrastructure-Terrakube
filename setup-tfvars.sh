@@ -12,8 +12,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOPPLER_PROJECT="matrix-homelab"
-DOPPLER_CONFIG="hetzner"
+DOPPLER_PROJECT="FullHavocJosh"
+DOPPLER_CONFIG="root_hetzner-cluster"
 
 # --- Validate dependencies ---
 if ! command -v doppler &>/dev/null; then
