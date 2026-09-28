@@ -2,25 +2,27 @@
 
 Dynamic workspace management for Terrakube using the `terrakube-io/terrakube` provider.
 
-This repository contains the **workspace structure and management configuration** for a Terrakube-based GitOps workflow. The actual infrastructure configurations (`.tf` files) are stored in a separate private repository.
+This repository is **self-referential**: it is both the Terraform code that manages Terrakube workspaces _and_ the source repo for those workspaces' actual `.tf` configurations. The manager workspace and every child workspace it creates all point their VCS source back at this same repo, each scoped to its own subdirectory via the `folder` argument.
 
 ## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  terrakube-workspaces (PUBLIC)                              │
-│  ├── Workspace structure (directories)                      │
-│  ├── Workspace discovery automation (scan-workspaces.sh)    │
-│  └── Workspace management (main.tf)                         │
-└─────────────────────────────────────────────────────────────┘
-                           ↓
-                    Terrakube reads from
-                           ↓
-┌─────────────────────────────────────────────────────────────┐
-│  your-infrastructure-repo (PRIVATE)                         │
-│  ├── cluster/argocd/main.tf       ← Actual configs          │
-│  ├── services/monitoring/main.tf  ← Actual configs          │
-│  └── servers/opnsense/main.tf     ← Actual configs          │
+│  Infrastructure-Terrakube (PUBLIC, self-referential)         │
+│                                                               │
+│  main.tf / variables.tf / outputs.tf                         │
+│    → "manager" workspace: creates/destroys child workspaces  │
+│      via the terrakube-io/terrakube provider                 │
+│                                                               │
+│  scan-workspaces.sh                                           │
+│    → discovers any cluster/, services/, servers/, clients/   │
+│      subdirectory containing a _workspace.tf marker           │
+│                                                                │
+│  cluster/argocd/main.tf, services/monitoring/main.tf,         │
+│  servers/opnsense/main.tf, ...                                │
+│    → actual infrastructure configs, live in this repo;        │
+│      each becomes its own child workspace (VCS source =       │
+│      this same repo, scoped to that folder, plan-only)        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,7 +69,7 @@ terrakube-workspaces/
 1. **Terrakube instance** deployed and accessible
 2. **GitHub OAuth App** configured for VCS integration
 3. **Terrakube API token** with `manageWorkspace` permission
-4. **Private infrastructure repository** containing actual Terraform configurations
+4. No separate infrastructure repo needed — this repo also holds the actual per-workspace Terraform configs (`cluster/`, `services/`, `servers/`, `clients/`)
 
 ### Configuration
 
@@ -89,7 +91,7 @@ terrakube-workspaces/
    ```hcl
    terrakube_endpoint      = "https://api.terrakube.yourdomain.com"
    terrakube_organization  = "YourOrgName"
-   infrastructure_repo     = "https://github.com/your-org/your-infrastructure"
+   infrastructure_repo     = "https://github.com/your-org/this-same-repo" # self-referential
    infrastructure_branch   = "main"
    workspace_prefix        = "infra"
    vcs_name                = "YourOrgName - GitHub"
@@ -142,17 +144,15 @@ terrakube-workspaces/
    # Creates workspace "infra-services-new-service" in Terrakube
    ```
 
-5. **Add actual Terraform configs** in your **private infrastructure repo**:
+5. **Add actual Terraform configs** directly in this same repo's `services/new-service/`:
    ```bash
-   # In your-infrastructure-repo
-   mkdir -p services/new-service
    cat > services/new-service/main.tf <<EOF
    # Your actual infrastructure code here
    EOF
    git add services/new-service/
    git commit -m "Add new-service infrastructure"
    git push
-   # Triggers Terrakube plan via webhook
+   # Triggers a Plan-only run on the new-service child workspace via webhook
    ```
 
 ## 🔧 How It Works
@@ -188,16 +188,18 @@ Examples:
 
 ### What to Keep Private
 
-- **Terraform configurations** (`.tf` files with actual infrastructure)
+- **Secrets, credentials, and tokens** (never inline — sourced from Doppler or Terrakube workspace variables at runtime)
 - **Variable values** (`terraform.tfvars`)
 - **Terrakube tokens** (use environment variables: `TF_VAR_terrakube_token`)
 - **State files** (use remote backend)
+- **Raw internal IPs/hostnames** beyond the `*.rollet.family` public names already used
 
 ### What's Safe to Publish
 
 - **Workspace structure** (directory layout)
 - **Discovery scripts** (generic automation)
 - **Management configuration** (this repo's `main.tf`)
+- **Actual infrastructure `.tf` configs** (`cluster/`, `services/`, `servers/`, `clients/`) — this repo is self-referential, so these live here too, as long as they contain no secrets or raw internal identifiers
 - **Documentation** (usage guides, examples)
 
 ### Recommendations
@@ -281,8 +283,8 @@ Contributions welcome! This repo is public to share Terrakube workspace manageme
 
 Please:
 
-- Keep PRs focused on workspace structure/automation
-- Don't commit actual infrastructure configurations
+- Keep PRs focused on workspace structure/automation, or on a specific server/service config
+- Don't commit secrets, credentials, or raw internal IPs/hostnames in any infrastructure config
 - Test changes locally before opening PRs
 - Update documentation for new features
 
@@ -303,6 +305,6 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Note**: This repository contains only workspace structure and automation. Actual infrastructure configurations should be kept in a separate private repository for security.
+**Note**: This repository is self-referential — it contains both the workspace management automation and the actual per-workspace infrastructure configurations. Security relies on keeping secrets, credentials, and raw internal IPs/hostnames out of every config, not on splitting them into a separate repo.
 
 # Test plan status check
