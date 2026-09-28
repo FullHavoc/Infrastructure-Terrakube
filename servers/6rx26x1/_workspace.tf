@@ -29,3 +29,16 @@ variable "authorized_keys" {
   description = "SSH public keys to write to ~/.ssh/authorized_keys"
   default     = []
 }
+
+variable "nfs_client_subnet" {
+  type        = string
+  description = "LAN CIDR allowed to mount NFS exports (workspace variable — set directly in this Terrakube workspace, not committed here)"
+
+  validation {
+    condition = (
+      can(cidrhost(var.nfs_client_subnet, 0)) &&
+      can(regex("^(10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)", var.nfs_client_subnet))
+    )
+    error_message = "nfs_client_subnet must be a valid CIDR within a private range (RFC 1918: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) — refusing anything broader (e.g. 0.0.0.0/0) to prevent granting NFS mount access beyond the home LAN."
+  }
+}
