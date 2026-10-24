@@ -1,0 +1,82 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tofu-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir:
+          - .
+          - cluster/argocd
+          - cluster/hetzner
+          - servers/6rx26x1
+          - servers/705g4
+          - servers/opnsense
+          - servers/truenas
+          - services/awx
+          - services/monitoring
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: latest
+          tofu_wrapper: false
+
+      - name: Init without backend
+        working-directory: ${{ matrix.dir }}
+        run: tofu init -backend=false -input=false
+
+      - name: Validate
+        working-directory: ${{ matrix.dir }}
+        run: tofu validate
+
+  tflint:
+    name: TFLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint --recursive --minimum-failure-severity=error
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      # Scan only the commits this event adds; existing history is reviewed separately.
+      - name: Scan new commits
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "$PR_BASE" ]; then
+            range="$PR_BASE..$PR_HEAD"
+          elif [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            range="$PUSH_BEFORE..$GITHUB_SHA"
+          else
+            range="$GITHUB_SHA~1..$GITHUB_SHA"
+          fi
+          gitleaks detect --source . --redact --no-banner --verbose --log-opts="$range"
